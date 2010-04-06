@@ -470,9 +470,27 @@ module EventMachine
           end
         end
 
-        processor, blk = @redis_callbacks.shift
-        value = processor.call(value) if processor
-        blk.call(value) if blk
+        callback = @redis_callbacks.shift
+        if callback.length == 2
+          processor, blk = callback
+          value = processor.call(value) if processor
+          blk.call(value) if blk
+        elsif callback.length == 3
+          processor, pipeline_count, blk = callback
+          value = processor.call(value) if processor
+          @values << value
+          if pipeline_count > 1
+            @redis_callbacks.unshift [processor, pipeline_count - 1, blk]
+          else
+            blk.call(@values) if blk
+            @values = []
+          end
+        end
+      end
+
+      def start_multibulk(multibulk_count)
+        @multibulk_n = multibulk_count
+        @multibulk_values = []
       end
 
       def unbind
