@@ -325,6 +325,23 @@ module EventMachine
         end
       end
 
+      def call_commands(argvs, &blk)
+        pending = 0
+        results = []
+        check = lambda {
+          blk.call(results) if pending < 1
+        }
+        argvs.each do |argv|
+          call_command(argv) { |result|
+            results << result
+            pending -= 1
+            check.call
+          }
+          pending += 1
+        end
+        check.call
+      end
+
       ##
       # errors
       #########################
